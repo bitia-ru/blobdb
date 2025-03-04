@@ -37,7 +37,17 @@ type Object struct {
 }
 
 func (object *Object) Open() (io.ReadCloser, error) {
-	file, err := os.Open(filepath.Join(object.db.dbDirPath, object.hashSum, "blob"))
+	var parts []string
+
+	for i := 0; i < cDbNestingLevels; i++ {
+		parts = append(parts, object.hashSum[i*2:i*2+2])
+	}
+
+	parts = append(parts, object.hashSum)
+
+	objectDirPath := filepath.Join(parts...)
+
+	file, err := os.Open(filepath.Join(object.db.dbDirPath, objectDirPath, "blob"))
 
 	if err != nil {
 		return nil, err
@@ -171,7 +181,7 @@ func (db *Db) Put(object io.Reader) (blobdb.Object, error) {
 		return nil, err
 	}
 
-	defer tempFile.Close()
+	defer func() { _ = tempFile.Close() }()
 
 	hasher := sha256.New()
 
@@ -351,7 +361,7 @@ func (db *Db) FindBySecondaryID(id string) (blobdb.Object, error) {
 		return nil, err
 	}
 
-	defer closer.Close()
+	defer func() { _ = closer.Close() }()
 
 	return db.Get(string(objectHash))
 }
